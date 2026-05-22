@@ -1,0 +1,131 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: #05060f;
+  color: #eef1ff;
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* Scrollbar a juego con la marca */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: #0a0c1c;
+}
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(#3b6ef6, #2563eb);
+  border-radius: 999px;
+  border: 2px solid #0a0c1c;
+}
+
+@layer components {
+  .font-display {
+    font-family: 'Clash Display', 'Space Grotesk', system-ui, sans-serif;
+    letter-spacing: -0.02em;
+  }
+
+  /* Texto con gradiente de marca */
+  .text-gradient {
+    background: linear-gradient(110deg, #5288ff 0%, #a855f7 45%, #ffc53d 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  .text-gradient-cool {
+    background: linear-gradient(110deg, #7da7ff 0%, #3b6ef6 60%, #a855f7 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  /* Tarjeta de vidrio reutilizable */
+  .glass {
+    background: linear-gradient(
+      160deg,
+      rgba(30, 35, 80, 0.55),
+      rgba(10, 12, 28, 0.55)
+    );
+    backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+  }
+  .glass-strong {
+    background: linear-gradient(
+      160deg,
+      rgba(36, 42, 96, 0.7),
+      rgba(12, 14, 32, 0.7)
+    );
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+
+  /* Botón primario con energía */
+  .btn-spark {
+    position: relative;
+    background: linear-gradient(120deg, #3b6ef6, #2563eb);
+    box-shadow: 0 8px 30px -8px rgba(59, 110, 246, 0.8);
+    transition: transform 0.18s ease, box-shadow 0.18s ease;
+  }
+  .btn-spark:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 14px 40px -8px rgba(59, 110, 246, 0.9);
+  }
+  .btn-spark:active {
+    transform: translateY(0);
+  }
+
+  .btn-gold {
+    background: linear-gradient(120deg, #ffc53d, #f5a623);
+    color: #1a1300;
+    box-shadow: 0 8px 30px -8px rgba(245, 166, 35, 0.8);
+    transition: transform 0.18s ease, box-shadow 0.18s ease;
+  }
+  .btn-gold:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 14px 40px -8px rgba(245, 166, 35, 0.95);
+  }
+
+  /* Borde con gradiente animado para destacar el evento LIVE */
+  .live-ring {
+    background: linear-gradient(90deg, #f43f5e, #ff5c7a, #f43f5e);
+    background-size: 200% 100%;
+    animation: shimmer 3s linear infinite;
+  }
+
+  .hairline {
+    border-color: rgba(255, 255, 255, 0.08);
+  }
+
+  /* Tabular numbers para contadores y XP */
+  .nums {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: 'tnum';
+  }
+}
+
+/* Grano sutil para textura premium */
+.grain::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+  opacity: 0.035;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
