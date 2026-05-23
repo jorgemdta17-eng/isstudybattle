@@ -14,10 +14,13 @@ import {
   Home,
   Target,
   Gauge,
+  TrendingUp,
 } from 'lucide-react'
 import { Aurora, Card, Chip, ProgressBar } from '../components/UI'
 import BoltLogo from '../components/BoltLogo'
 import { QUESTION_BANK, SUBJECTS } from '../data/mock'
+import { useAuth } from '../context/AuthContext'
+import { saveBattleResult } from '../lib/supabase'
 
 const MODES = [
   { id: 'solo', name: 'Solo Battle', desc: 'Contra la IA', icon: Bot, color: 'bolt' },
@@ -29,6 +32,7 @@ const MODES = [
 const QUESTION_TIME = 10
 
 export default function Battle() {
+  const { user } = useAuth()
   const [phase, setPhase] = useState('select') // select | playing | results
   const [mode, setMode] = useState(MODES[0])
   const [stats, setStats] = useState(null)
@@ -52,7 +56,15 @@ export default function Battle() {
         onQuit={() => setPhase('select')}
       />
     )
-  return <Results stats={stats} mode={mode} onAgain={() => setPhase('playing')} onHome={() => setPhase('select')} />
+  return (
+    <Results
+      stats={stats}
+      mode={mode}
+      userId={user?.id}
+      onAgain={() => setPhase('playing')}
+      onHome={() => setPhase('select')}
+    />
+  )
 }
 
 /* ---------- SELECCIÓN ---------- */
@@ -196,13 +208,13 @@ function Game({ mode, onFinish, onQuit }) {
     }
     setTimeout(() => {
       if (qi + 1 >= questions.length) {
-        const avgSpeed = (
-          [...speeds, QUESTION_TIME - time].reduce((a, b) => a + b, 0) /
-          questions.length
-        ).toFixed(1)
+        const allSpeeds = [...speeds, QUESTION_TIME - time]
+        const avgSpeed = (allSpeeds.reduce((a, b) => a + b, 0) / questions.length).toFixed(1)
+        const finalCorrect = correct + (isCorrect ? 1 : 0)
+        const finalScore = score + (isCorrect ? Math.round((100 + time * 8) * multiplier) : 0)
         onFinish({
-          score: score + (isCorrect ? Math.round((100 + time * 8) * multiplier) : 0),
-          correct: correct + (isCorrect ? 1 : 0),
+          score: finalScore,
+          correct: finalCorrect,
           totalQ: questions.length,
           avgSpeed,
           maxCombo: combo + (isCorrect ? 1 : 0),
@@ -332,8 +344,37 @@ function Game({ mode, onFinish, onQuit }) {
 }
 
 /* ---------- RESULTADOS ---------- */
-function Results({ stats, mode, onAgain, onHome }) {
+function Results({ stats, mode, userId, onAgain, onHome }) {
+  const { refreshProfile } = useAuth()
+  const [saving, setSaving] = useState(true)
+  const [saveError, setSaveError] = useState(null)
+  const [levelUp, setLevelUp] = useState(null) // new level if levelled up
+
   const accuracy = Math.round((stats.correct / stats.totalQ) * 100)
+  const won = accuracy >= 60
+
+  useEffect(() => {
+    if (!userId) { setSaving(false); return }
+
+    saveBattleResult(userId, { xpGained: stats.score, won })
+      .then((updated) => {
+        // Check for level up by comparing old level derived from old XP
+        // updated.level is the new level after gaining XP
+        // We can infer old level from updated.xp - stats.score
+        const oldXp = updated.xp - stats.score
+        const oldLevel = Math.max(1, Math.floor(oldXp / 300) + 1)
+        if (updated.level > oldLevel) {
+          setLevelUp(updated.level)
+        }
+        refreshProfile()
+      })
+      .catch((err) => {
+        setSaveError('No se pudo guardar el resultado. Comprueba tu conexión.')
+        console.error(err)
+      })
+      .finally(() => setSaving(false))
+  }, [])
+
   const rows = [
     { icon: Zap, label: 'XP ganado', value: `+${stats.score}`, color: 'text-bolt-300' },
     { icon: Target, label: 'Precisión', value: `${accuracy}%`, color: 'text-toxic-400' },
@@ -353,6 +394,7 @@ function Results({ stats, mode, onAgain, onHome }) {
       >
         <Card className="overflow-hidden p-8 text-center">
           <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-bolt-500 via-plasma-500 to-spark-500" />
+
           <motion.div
             initial={{ scale: 0, rotate: -30 }}
             animate={{ scale: 1, rotate: 0 }}
@@ -362,6 +404,30 @@ function Results({ stats, mode, onAgain, onHome }) {
           </motion.div>
           <h2 className="mt-5 font-display text-3xl font-bold">{verdict}</h2>
           <p className="mt-1 text-sm text-white/50">{mode.name} completada</p>
+
+          {/* Level-up banner */}
+          <AnimatePresence>
+            {levelUp && (
+              <motion.div
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="mt-4 flex items-center justify-center gap-2 rounded-2xl bg-spark-500/20 px-4 py-3 ring-1 ring-spark-500/40"
+              >
+                <TrendingUp size={18} className="text-spark-400" />
+                <span className="font-display font-bold text-spark-300">
+                  ¡Subiste al nivel {levelUp}!
+                </span>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Save status */}
+          {saving && (
+            <p className="mt-3 text-xs text-white/40">Guardando resultado…</p>
+          )}
+          {saveError && (
+            <p className="mt-3 text-xs text-red-400">{saveError}</p>
+          )}
 
           <div className="mt-6 grid grid-cols-2 gap-3">
             {rows.map((r, i) => (

@@ -29,11 +29,15 @@ export default function Profile() {
   const initials = getInitials(name)
   const [tab, setTab] = useState('badges')
 
+  const battlesPlayed = profile?.battles_played ?? 0
+  const battlesWon = profile?.battles_won ?? 0
+  const winRate = battlesPlayed > 0 ? Math.round((battlesWon / battlesPlayed) * 100) : 0
+
   const stats = [
     { icon: Zap, label: 'XP total', value: xp.toLocaleString('es'), color: 'text-bolt-300' },
     { icon: Flame, label: 'Racha', value: `${streak} días`, color: 'text-ember-400' },
-    { icon: Target, label: 'Precisión', value: '78%', color: 'text-toxic-400' },
-    { icon: Trophy, label: 'Victorias', value: '0', color: 'text-spark-400' },
+    { icon: Target, label: 'Win rate', value: `${winRate}%`, color: 'text-toxic-400' },
+    { icon: Trophy, label: 'Victorias', value: battlesWon.toString(), color: 'text-spark-400' },
   ]
 
   return (
@@ -55,8 +59,10 @@ export default function Profile() {
                 <div className="flex flex-wrap items-center justify-center gap-2 sm:justify-start">
                   <h1 className="font-display text-2xl font-bold">{name}</h1>
                 </div>
-                <div className="mt-2 flex items-center justify-center gap-2 sm:justify-start">
+                <div className="mt-2 flex flex-wrap items-center justify-center gap-2 sm:justify-start">
                   <span className="font-bold" style={{ color: rank.color }}>{rank.name}</span>
+                  <span className="text-white/30">·</span>
+                  <span className="text-sm text-white/50">{battlesPlayed} batallas jugadas</span>
                 </div>
                 <div className="mt-4">
                   <div className="mb-1 flex justify-between text-xs text-white/50">
