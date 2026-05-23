@@ -1,18 +1,6 @@
-import { motion } from 'framer-motion'
-import {
-  Home,
-  Swords,
-  Radio,
-  Brain,
-  Library,
-  Trophy,
-  User,
-  Flame,
-  Coins,
-  Zap,
-  LogOut,
-  BookOpen,
-} from 'lucide-react'
+import { useState } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
+import { Home, Swords, Radio, Brain, Library, Trophy, User, Flame, Coins, Zap, LogOut, BookOpen, MoveHorizontal as MoreHorizontal, X } from 'lucide-react'
 import BoltLogo from './BoltLogo'
 import { Avatar } from './UI'
 import { useAuth } from '../context/AuthContext'
@@ -28,7 +16,19 @@ export const NAV = [
   { id: 'questions', label: 'Preguntas', icon: BookOpen },
 ]
 
+// Items visible directly in the mobile bottom bar (excluding the "more" overflow)
+const MOBILE_PRIMARY = ['dashboard', 'battle', 'live', 'tutor']
+// Items accessible via the "more" drawer
+const MOBILE_MORE = ['library', 'leaderboard', 'profile', 'questions']
+
 export default function AppShell({ screen, onNavigate, children }) {
+  const [moreOpen, setMoreOpen] = useState(false)
+
+  function navigate(id) {
+    setMoreOpen(false)
+    onNavigate(id)
+  }
+
   return (
     <div className="relative flex min-h-screen bg-ink-900 text-white grain">
       {/* Sidebar desktop */}
@@ -67,10 +67,7 @@ export default function AppShell({ screen, onNavigate, children }) {
                     style={{ width: 3 }}
                   />
                 )}
-                <Icon
-                  size={19}
-                  className={item.live && !Active ? 'text-ember-400' : ''}
-                />
+                <Icon size={19} className={item.live && !Active ? 'text-ember-400' : ''} />
                 <span>{item.label}</span>
                 {item.live && (
                   <span className="ml-auto flex h-2 w-2 items-center justify-center">
@@ -109,38 +106,96 @@ export default function AppShell({ screen, onNavigate, children }) {
         <main className="relative flex-1 pb-24 lg:pb-8">{children}</main>
       </div>
 
+      {/* Backdrop del menú "más" */}
+      <AnimatePresence>
+        {moreOpen && (
+          <motion.div
+            key="backdrop"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm lg:hidden"
+            onClick={() => setMoreOpen(false)}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* Menú "más" — panel que sube desde el bottom nav */}
+      <AnimatePresence>
+        {moreOpen && (
+          <motion.div
+            key="more-panel"
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 16 }}
+            transition={{ type: 'spring', stiffness: 340, damping: 30 }}
+            className="fixed bottom-[72px] left-2 right-2 z-50 overflow-hidden rounded-2xl border border-white/10 bg-ink-800/95 shadow-2xl backdrop-blur-xl lg:hidden"
+          >
+            <div className="grid grid-cols-4 gap-0 p-3">
+              {MOBILE_MORE.map((id) => {
+                const item = NAV.find((n) => n.id === id)
+                if (!item) return null
+                const Active = screen === item.id
+                const Icon = item.icon
+                return (
+                  <button
+                    key={item.id}
+                    onClick={() => navigate(item.id)}
+                    className={`flex flex-col items-center gap-1.5 rounded-xl px-2 py-3 text-[10px] font-semibold transition active:scale-95 ${
+                      Active ? 'bg-white/10 text-bolt-300' : 'text-white/60 hover:bg-white/5 hover:text-white'
+                    }`}
+                  >
+                    <Icon size={20} />
+                    {item.label}
+                  </button>
+                )
+              })}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Bottom nav móvil */}
       <nav className="fixed inset-x-0 bottom-0 z-40 flex items-center justify-around border-t border-white/10 bg-ink-800/90 px-2 py-2 backdrop-blur-xl lg:hidden">
-        {NAV.filter((n) => ['dashboard', 'battle', 'live', 'tutor', 'profile'].includes(n.id)).map(
-          (item) => {
-            const Active = screen === item.id
-            const Icon = item.icon
-            if (item.live) {
-              return (
-                <button
-                  key={item.id}
-                  onClick={() => onNavigate(item.id)}
-                  className="relative -mt-6 grid h-14 w-14 place-items-center rounded-2xl bg-gradient-to-br from-ember-500 to-ember-400 shadow-[0_8px_30px_-6px_rgba(244,63,94,0.8)]"
-                >
-                  <span className="absolute inset-0 animate-pulse-ring rounded-2xl border-2 border-ember-400" />
-                  <Icon size={24} className="relative" />
-                </button>
-              )
-            }
+        {NAV.filter((n) => MOBILE_PRIMARY.includes(n.id)).map((item) => {
+          const Active = screen === item.id
+          const Icon = item.icon
+          if (item.live) {
             return (
               <button
                 key={item.id}
-                onClick={() => onNavigate(item.id)}
-                className={`flex flex-col items-center gap-1 rounded-xl px-3 py-1.5 text-[10px] font-semibold ${
-                  Active ? 'text-bolt-300' : 'text-white/45'
-                }`}
+                onClick={() => navigate(item.id)}
+                className="relative -mt-6 grid h-14 w-14 place-items-center rounded-2xl bg-gradient-to-br from-ember-500 to-ember-400 shadow-[0_8px_30px_-6px_rgba(244,63,94,0.8)]"
               >
-                <Icon size={20} />
-                {item.label}
+                <span className="absolute inset-0 animate-pulse-ring rounded-2xl border-2 border-ember-400" />
+                <Icon size={24} className="relative" />
               </button>
             )
           }
-        )}
+          return (
+            <button
+              key={item.id}
+              onClick={() => navigate(item.id)}
+              className={`flex flex-col items-center gap-1 rounded-xl px-3 py-1.5 text-[10px] font-semibold ${
+                Active ? 'text-bolt-300' : 'text-white/45'
+              }`}
+            >
+              <Icon size={20} />
+              {item.label}
+            </button>
+          )
+        })}
+
+        {/* Botón "Más" */}
+        <button
+          onClick={() => setMoreOpen((o) => !o)}
+          className={`flex flex-col items-center gap-1 rounded-xl px-3 py-1.5 text-[10px] font-semibold transition ${
+            MOBILE_MORE.includes(screen) || moreOpen ? 'text-bolt-300' : 'text-white/45'
+          }`}
+        >
+          {moreOpen ? <X size={20} /> : <MoreHorizontal size={20} />}
+          {moreOpen ? 'Cerrar' : 'Más'}
+        </button>
       </nav>
     </div>
   )

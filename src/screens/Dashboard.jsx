@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
 import {
   Swords,
@@ -14,13 +15,19 @@ import {
 import { Aurora, Card, Chip, Countdown, CountUp, ProgressBar, Avatar } from '../components/UI'
 import BoltLogo from '../components/BoltLogo'
 import { useAuth } from '../context/AuthContext'
+import { supabase } from '../lib/supabase'
 import {
   DAILY_MISSIONS,
-  LEADERBOARD,
   LIVE_EVENTS,
   RANKS,
   rankColor,
 } from '../data/mock'
+
+function getRankName(xp) {
+  let rank = RANKS[0]
+  for (const r of RANKS) { if (xp >= r.min) rank = r }
+  return rank.name
+}
 
 function getInitials(name) {
   return (name || '')
@@ -49,7 +56,31 @@ function getXpToNext(xp) {
 }
 
 export default function Dashboard({ onNavigate }) {
-  const { profile } = useAuth()
+  const { user, profile } = useAuth()
+  const [rankRows, setRankRows] = useState([])
+
+  useEffect(() => {
+    async function loadRanking() {
+      const { data } = await supabase
+        .from('profiles')
+        .select('id, name, xp')
+        .order('xp', { ascending: false })
+        .limit(5)
+      if (data) {
+        setRankRows(
+          data.map((p, i) => ({
+            pos: i + 1,
+            id: p.id,
+            name: p.name || 'Anónimo',
+            xp: p.xp ?? 0,
+            rank: getRankName(p.xp ?? 0),
+            you: p.id === user?.id,
+          }))
+        )
+      }
+    }
+    loadRanking()
+  }, [user?.id])
 
   const name = profile?.name ?? 'Jugador'
   const xp = profile?.xp ?? 0
@@ -61,8 +92,19 @@ export default function Dashboard({ onNavigate }) {
   const initials = getInitials(name)
 
   const featured = LIVE_EVENTS.find((e) => e.featured)
-  const top = LEADERBOARD.slice(0, 4)
-  const you = LEADERBOARD.find((r) => r.you)
+
+  // Current user's row — may be outside top 5
+  const youInTop = rankRows.find((r) => r.you)
+  const top = youInTop ? rankRows.slice(0, 4) : rankRows.slice(0, 4)
+  // Only show "you" separator row if the user is not already visible in top
+  const youRow = !youInTop && user ? {
+    pos: '—',
+    id: user.id,
+    name: profile?.name || 'Tú',
+    xp: profile?.xp ?? 0,
+    rank: getRankName(profile?.xp ?? 0),
+    you: true,
+  } : null
 
   const QUICK = [
     { id: 'battle', label: 'Start Battle', icon: Swords, color: 'spark', sub: 'Entrena ahora' },
@@ -248,10 +290,17 @@ export default function Dashboard({ onNavigate }) {
                 </div>
                 <div className="space-y-2">
                   {top.map((r) => (
-                    <RankRow key={r.pos} r={r} />
+                    <RankRow key={r.id} r={r} />
                   ))}
-                  <div className="my-2 text-center text-xs text-white/30">· · ·</div>
-                  <RankRow r={you} />
+                  {youRow && (
+                    <>
+                      <div className="my-2 text-center text-xs text-white/30">· · ·</div>
+                      <RankRow r={youRow} />
+                    </>
+                  )}
+                  {rankRows.length === 0 && (
+                    <p className="py-2 text-center text-xs text-white/30">Sin datos aún</p>
+                  )}
                 </div>
               </Card>
             </motion.div>
