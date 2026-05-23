@@ -11,6 +11,7 @@ import {
   Coins,
   Zap,
   LogOut,
+  BookOpen,
 } from 'lucide-react'
 import BoltLogo from './BoltLogo'
 import { Avatar } from './UI'
@@ -24,6 +25,7 @@ export const NAV = [
   { id: 'library', label: 'Library', icon: Library },
   { id: 'leaderboard', label: 'Ranking', icon: Trophy },
   { id: 'profile', label: 'Profile', icon: User },
+  { id: 'questions', label: 'Preguntas', icon: BookOpen },
 ]
 
 export default function AppShell({ screen, onNavigate, children }) {

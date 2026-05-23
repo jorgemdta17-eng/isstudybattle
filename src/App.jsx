@@ -13,6 +13,7 @@ import Tutor from './screens/Tutor'
 import Library from './screens/Library'
 import Leaderboard from './screens/Leaderboard'
 import Profile from './screens/Profile'
+import QuestionManager from './screens/QuestionManager'
 
 const IN_APP = {
   dashboard: Dashboard,
@@ -22,6 +23,7 @@ const IN_APP = {
   library: Library,
   leaderboard: Leaderboard,
   profile: Profile,
+  questions: QuestionManager,
 }
 
 function AppRouter() {

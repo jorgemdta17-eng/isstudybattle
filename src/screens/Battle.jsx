@@ -1,26 +1,12 @@
 import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import {
-  Swords,
-  Bot,
-  Users,
-  BookOpen,
-  Crown,
-  Zap,
-  Flame,
-  Check,
-  X,
-  RotateCcw,
-  Home,
-  Target,
-  Gauge,
-  TrendingUp,
-} from 'lucide-react'
+import { Swords, Bot, Users, BookOpen, Crown, Zap, Flame, Check, X, RotateCcw, Home, Target, Gauge, TrendingUp, Loader as Loader2 } from 'lucide-react'
 import { Aurora, Card, Chip, ProgressBar } from '../components/UI'
 import BoltLogo from '../components/BoltLogo'
-import { QUESTION_BANK, SUBJECTS } from '../data/mock'
+import { SUBJECTS } from '../data/mock'
 import { useAuth } from '../context/AuthContext'
 import { saveBattleResult } from '../lib/supabase'
+import { useQuestions } from '../lib/useQuestions'
 
 const MODES = [
   { id: 'solo', name: 'Solo Battle', desc: 'Contra la IA', icon: Bot, color: 'bolt' },
@@ -36,23 +22,22 @@ export default function Battle() {
   const [phase, setPhase] = useState('select') // select | playing | results
   const [mode, setMode] = useState(MODES[0])
   const [stats, setStats] = useState(null)
+  const [battleConfig, setBattleConfig] = useState({ subject: 'Todas', difficulty: 'Media' })
 
   if (phase === 'select')
     return (
       <Selector
         mode={mode}
         setMode={setMode}
-        onStart={() => setPhase('playing')}
+        onStart={(cfg) => { setBattleConfig(cfg); setPhase('playing') }}
       />
     )
   if (phase === 'playing')
     return (
       <Game
         mode={mode}
-        onFinish={(s) => {
-          setStats(s)
-          setPhase('results')
-        }}
+        battleConfig={battleConfig}
+        onFinish={(s) => { setStats(s); setPhase('results') }}
         onQuit={() => setPhase('select')}
       />
     )
@@ -69,8 +54,9 @@ export default function Battle() {
 
 /* ---------- SELECCIÓN ---------- */
 function Selector({ mode, setMode, onStart }) {
-  const [subject, setSubject] = useState(SUBJECTS[0].id)
+  const [subject, setSubject] = useState('Todas')
   const [difficulty, setDifficulty] = useState('Media')
+
   return (
     <div className="relative min-h-full">
       <Aurora className="opacity-50" />
@@ -112,19 +98,22 @@ function Selector({ mode, setMode, onStart }) {
               Asignatura
             </h3>
             <div className="flex flex-wrap gap-2">
-              {SUBJECTS.map((s) => (
-                <button
-                  key={s.id}
-                  onClick={() => setSubject(s.id)}
-                  className={`rounded-full px-3 py-1.5 text-sm font-semibold ring-1 transition ${
-                    subject === s.id
-                      ? `bg-${s.color}-500/20 text-${s.color}-400 ring-${s.color}-500/40`
-                      : 'bg-white/5 text-white/60 ring-white/10 hover:ring-white/25'
-                  }`}
-                >
-                  {s.emoji} {s.name}
-                </button>
-              ))}
+              {[{ id: 'todas', name: 'Todas', emoji: '🎲', color: 'bolt' }, ...SUBJECTS].map((s) => {
+                const id = s.id === 'todas' ? 'Todas' : s.name
+                return (
+                  <button
+                    key={s.id}
+                    onClick={() => setSubject(id)}
+                    className={`rounded-full px-3 py-1.5 text-sm font-semibold ring-1 transition ${
+                      subject === id
+                        ? `bg-${s.color}-500/20 text-${s.color}-400 ring-${s.color}-500/40`
+                        : 'bg-white/5 text-white/60 ring-white/10 hover:ring-white/25'
+                    }`}
+                  >
+                    {s.emoji} {s.name}
+                  </button>
+                )
+              })}
             </div>
           </Card>
 
@@ -155,7 +144,7 @@ function Selector({ mode, setMode, onStart }) {
         </div>
 
         <button
-          onClick={onStart}
+          onClick={() => onStart({ subject, difficulty })}
           className="btn-spark mt-7 flex w-full items-center justify-center gap-2 rounded-2xl py-4 text-lg font-bold sm:w-auto sm:px-12"
         >
           <Zap size={20} className="fill-white" /> Iniciar batalla
@@ -166,10 +155,52 @@ function Selector({ mode, setMode, onStart }) {
 }
 
 /* ---------- JUEGO ---------- */
-function Game({ mode, onFinish, onQuit }) {
-  const questions = useRef(
-    [...QUESTION_BANK].sort(() => Math.random() - 0.5).slice(0, 5)
-  ).current
+function Game({ mode, battleConfig, onFinish, onQuit }) {
+  const { questions: allQuestions, loading, error } = useQuestions({
+    subject: battleConfig.subject,
+    difficulty: battleConfig.difficulty,
+  })
+
+  // Pick 5 random questions once pool is loaded
+  const questions = useRef(null)
+  useEffect(() => {
+    if (!loading && allQuestions.length > 0 && questions.current === null) {
+      questions.current = [...allQuestions].sort(() => Math.random() - 0.5).slice(0, 5)
+    }
+  }, [loading, allQuestions])
+
+  if (loading || questions.current === null) {
+    return (
+      <div className="grid min-h-full place-items-center">
+        <div className="flex flex-col items-center gap-4 text-white/60">
+          <Loader2 size={36} className="animate-spin text-bolt-400" />
+          <p className="text-sm">Cargando preguntas…</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (error || questions.current.length === 0) {
+    return (
+      <div className="grid min-h-full place-items-center px-6 text-center">
+        <div className="space-y-3">
+          <p className="text-lg font-bold text-white">No hay preguntas disponibles</p>
+          <p className="text-sm text-white/50">
+            {error ?? 'Prueba con otra asignatura o dificultad.'}
+          </p>
+          <button onClick={onQuit} className="btn-spark mx-auto mt-2 rounded-xl px-6 py-3 font-bold">
+            Volver
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  return <GameBoard questions={questions.current} mode={mode} onFinish={onFinish} onQuit={onQuit} />
+}
+
+/* Inner game board — receives a fixed questions array */
+function GameBoard({ questions, onFinish, onQuit }) {
   const [qi, setQi] = useState(0)
   const [time, setTime] = useState(QUESTION_TIME)
   const [picked, setPicked] = useState(null)
@@ -182,13 +213,9 @@ function Game({ mode, onFinish, onQuit }) {
   const q = questions[qi]
   const multiplier = 1 + Math.floor(combo / 2)
 
-  // temporizador
   useEffect(() => {
     if (locked) return
-    if (time <= 0) {
-      handlePick(-1)
-      return
-    }
+    if (time <= 0) { handlePick(-1); return }
     const id = setTimeout(() => setTime((t) => t - 0.05), 50)
     return () => clearTimeout(id)
   }, [time, locked])
@@ -212,13 +239,7 @@ function Game({ mode, onFinish, onQuit }) {
         const avgSpeed = (allSpeeds.reduce((a, b) => a + b, 0) / questions.length).toFixed(1)
         const finalCorrect = correct + (isCorrect ? 1 : 0)
         const finalScore = score + (isCorrect ? Math.round((100 + time * 8) * multiplier) : 0)
-        onFinish({
-          score: finalScore,
-          correct: finalCorrect,
-          totalQ: questions.length,
-          avgSpeed,
-          maxCombo: combo + (isCorrect ? 1 : 0),
-        })
+        onFinish({ score: finalScore, correct: finalCorrect, totalQ: questions.length, avgSpeed, maxCombo: combo + (isCorrect ? 1 : 0) })
       } else {
         setQi((n) => n + 1)
         setTime(QUESTION_TIME)
@@ -231,7 +252,6 @@ function Game({ mode, onFinish, onQuit }) {
     <div className="relative min-h-full">
       <Aurora className="opacity-40" />
       <div className="relative z-10 mx-auto flex min-h-full max-w-2xl flex-col px-4 py-6 sm:px-8">
-        {/* HUD superior */}
         <div className="flex items-center justify-between">
           <button
             onClick={onQuit}
@@ -249,7 +269,6 @@ function Game({ mode, onFinish, onQuit }) {
           </div>
         </div>
 
-        {/* Combo */}
         <div className="mt-4 flex h-8 items-center justify-center">
           <AnimatePresence>
             {combo >= 1 && (
@@ -267,23 +286,17 @@ function Game({ mode, onFinish, onQuit }) {
           </AnimatePresence>
         </div>
 
-        {/* barra de tiempo */}
         <div className="mt-4">
           <div className="relative h-2.5 w-full overflow-hidden rounded-full bg-white/8">
             <motion.div
-              className={`h-full rounded-full ${
-                time < 3 ? 'bg-ember-500' : 'bg-gradient-to-r from-toxic-400 to-bolt-500'
-              }`}
+              className={`h-full rounded-full ${time < 3 ? 'bg-ember-500' : 'bg-gradient-to-r from-toxic-400 to-bolt-500'}`}
               animate={{ width: `${(time / QUESTION_TIME) * 100}%` }}
               transition={{ ease: 'linear', duration: 0.05 }}
             />
           </div>
-          <div className="mt-1 text-right font-mono text-xs text-white/50 nums">
-            {time.toFixed(1)}s
-          </div>
+          <div className="mt-1 text-right font-mono text-xs text-white/50 nums">{time.toFixed(1)}s</div>
         </div>
 
-        {/* pregunta */}
         <div className="flex flex-1 flex-col justify-center">
           <AnimatePresence mode="wait">
             <motion.div
@@ -294,9 +307,7 @@ function Game({ mode, onFinish, onQuit }) {
               transition={{ duration: 0.3 }}
             >
               <Chip color="bolt" className="mb-4">{q.subject}</Chip>
-              <h2 className="font-display text-2xl font-bold leading-snug sm:text-3xl">
-                {q.q}
-              </h2>
+              <h2 className="font-display text-2xl font-bold leading-snug sm:text-3xl">{q.q}</h2>
 
               <div className="mt-6 grid gap-3 sm:grid-cols-2">
                 {q.options.map((opt, i) => {
@@ -312,22 +323,16 @@ function Game({ mode, onFinish, onQuit }) {
                       disabled={locked}
                       onClick={() => handlePick(i)}
                       className={`flex items-center gap-3 rounded-2xl border p-4 text-left font-semibold transition ${
-                        state === 'idle'
-                          ? 'border-white/10 bg-white/5 hover:-translate-y-0.5 hover:border-bolt-500/50 hover:bg-bolt-500/10'
-                          : ''
-                      } ${state === 'correct' ? 'border-toxic-500 bg-toxic-500/20 text-toxic-300' : ''} ${
-                        state === 'wrong' ? 'border-ember-500 bg-ember-500/20 text-ember-300' : ''
+                        state === 'idle' ? 'border-white/10 bg-white/5 hover:-translate-y-0.5 hover:border-bolt-500/50 hover:bg-bolt-500/10' : ''
+                      } ${state === 'correct' ? 'border-toxic-500 bg-toxic-500/20 text-toxic-300' : ''
+                      } ${state === 'wrong' ? 'border-ember-500 bg-ember-500/20 text-ember-300' : ''
                       } ${state === 'dim' ? 'border-white/5 bg-white/5 opacity-40' : ''}`}
                     >
-                      <span
-                        className={`grid h-7 w-7 shrink-0 place-items-center rounded-lg text-xs font-bold ${
-                          state === 'correct'
-                            ? 'bg-toxic-500 text-ink-900'
-                            : state === 'wrong'
-                            ? 'bg-ember-500 text-white'
-                            : 'bg-white/10 text-white/60'
-                        }`}
-                      >
+                      <span className={`grid h-7 w-7 shrink-0 place-items-center rounded-lg text-xs font-bold ${
+                        state === 'correct' ? 'bg-toxic-500 text-ink-900'
+                        : state === 'wrong' ? 'bg-ember-500 text-white'
+                        : 'bg-white/10 text-white/60'
+                      }`}>
                         {state === 'correct' ? <Check size={14} /> : state === 'wrong' ? <X size={14} /> : String.fromCharCode(65 + i)}
                       </span>
                       {opt}
@@ -348,24 +353,18 @@ function Results({ stats, mode, userId, onAgain, onHome }) {
   const { refreshProfile } = useAuth()
   const [saving, setSaving] = useState(true)
   const [saveError, setSaveError] = useState(null)
-  const [levelUp, setLevelUp] = useState(null) // new level if levelled up
+  const [levelUp, setLevelUp] = useState(null)
 
   const accuracy = Math.round((stats.correct / stats.totalQ) * 100)
   const won = accuracy >= 60
 
   useEffect(() => {
     if (!userId) { setSaving(false); return }
-
     saveBattleResult(userId, { xpGained: stats.score, won })
       .then((updated) => {
-        // Check for level up by comparing old level derived from old XP
-        // updated.level is the new level after gaining XP
-        // We can infer old level from updated.xp - stats.score
         const oldXp = updated.xp - stats.score
         const oldLevel = Math.max(1, Math.floor(oldXp / 300) + 1)
-        if (updated.level > oldLevel) {
-          setLevelUp(updated.level)
-        }
+        if (updated.level > oldLevel) setLevelUp(updated.level)
         refreshProfile()
       })
       .catch((err) => {
@@ -381,8 +380,7 @@ function Results({ stats, mode, userId, onAgain, onHome }) {
     { icon: Gauge, label: 'Velocidad media', value: `${stats.avgSpeed}s`, color: 'text-spark-400' },
     { icon: Flame, label: 'Combo máximo', value: `x${stats.maxCombo}`, color: 'text-ember-400' },
   ]
-  const verdict =
-    accuracy >= 80 ? '¡Dominado! 🔥' : accuracy >= 50 ? '¡Buen trabajo! 💪' : 'A seguir entrenando 📚'
+  const verdict = accuracy >= 80 ? '¡Dominado! 🔥' : accuracy >= 50 ? '¡Buen trabajo! 💪' : 'A seguir entrenando 📚'
 
   return (
     <div className="relative grid min-h-full place-items-center">
@@ -394,7 +392,6 @@ function Results({ stats, mode, userId, onAgain, onHome }) {
       >
         <Card className="overflow-hidden p-8 text-center">
           <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-bolt-500 via-plasma-500 to-spark-500" />
-
           <motion.div
             initial={{ scale: 0, rotate: -30 }}
             animate={{ scale: 1, rotate: 0 }}
@@ -405,7 +402,6 @@ function Results({ stats, mode, userId, onAgain, onHome }) {
           <h2 className="mt-5 font-display text-3xl font-bold">{verdict}</h2>
           <p className="mt-1 text-sm text-white/50">{mode.name} completada</p>
 
-          {/* Level-up banner */}
           <AnimatePresence>
             {levelUp && (
               <motion.div
@@ -414,20 +410,13 @@ function Results({ stats, mode, userId, onAgain, onHome }) {
                 className="mt-4 flex items-center justify-center gap-2 rounded-2xl bg-spark-500/20 px-4 py-3 ring-1 ring-spark-500/40"
               >
                 <TrendingUp size={18} className="text-spark-400" />
-                <span className="font-display font-bold text-spark-300">
-                  ¡Subiste al nivel {levelUp}!
-                </span>
+                <span className="font-display font-bold text-spark-300">¡Subiste al nivel {levelUp}!</span>
               </motion.div>
             )}
           </AnimatePresence>
 
-          {/* Save status */}
-          {saving && (
-            <p className="mt-3 text-xs text-white/40">Guardando resultado…</p>
-          )}
-          {saveError && (
-            <p className="mt-3 text-xs text-red-400">{saveError}</p>
-          )}
+          {saving && <p className="mt-3 text-xs text-white/40">Guardando resultado…</p>}
+          {saveError && <p className="mt-3 text-xs text-red-400">{saveError}</p>}
 
           <div className="mt-6 grid grid-cols-2 gap-3">
             {rows.map((r, i) => (
@@ -457,16 +446,10 @@ function Results({ stats, mode, userId, onAgain, onHome }) {
           </div>
 
           <div className="mt-6 flex gap-3">
-            <button
-              onClick={onAgain}
-              className="btn-spark flex flex-1 items-center justify-center gap-2 rounded-2xl py-3 font-bold"
-            >
+            <button onClick={onAgain} className="btn-spark flex flex-1 items-center justify-center gap-2 rounded-2xl py-3 font-bold">
               <RotateCcw size={16} /> Otra vez
             </button>
-            <button
-              onClick={onHome}
-              className="flex flex-1 items-center justify-center gap-2 rounded-2xl bg-white/5 py-3 font-bold ring-1 ring-white/10 hover:bg-white/10"
-            >
+            <button onClick={onHome} className="flex flex-1 items-center justify-center gap-2 rounded-2xl bg-white/5 py-3 font-bold ring-1 ring-white/10 hover:bg-white/10">
               <Home size={16} /> Volver
             </button>
           </div>
