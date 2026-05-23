@@ -13,16 +13,53 @@ import {
 } from 'lucide-react'
 import { Aurora, Card, Chip, Countdown, CountUp, ProgressBar, Avatar } from '../components/UI'
 import BoltLogo from '../components/BoltLogo'
+import { useAuth } from '../context/AuthContext'
 import {
-  CURRENT_USER,
   DAILY_MISSIONS,
   LEADERBOARD,
   LIVE_EVENTS,
+  RANKS,
   rankColor,
 } from '../data/mock'
 
+function getInitials(name) {
+  return (name || '')
+    .split(' ')
+    .map((w) => w[0])
+    .join('')
+    .slice(0, 2)
+    .toUpperCase() || '?'
+}
+
+function getRank(xp) {
+  let rank = RANKS[0]
+  for (const r of RANKS) {
+    if (xp >= r.min) rank = r
+  }
+  return rank
+}
+
+function getLevel(xp) {
+  return Math.max(1, Math.floor(xp / 300) + 1)
+}
+
+function getXpToNext(xp) {
+  const level = getLevel(xp)
+  return level * 300
+}
+
 export default function Dashboard({ onNavigate }) {
-  const u = CURRENT_USER
+  const { profile } = useAuth()
+
+  const name = profile?.name ?? 'Jugador'
+  const xp = profile?.xp ?? 0
+  const streak = profile?.streak ?? 0
+  const coins = profile?.coins ?? 0
+  const rank = getRank(xp)
+  const level = getLevel(xp)
+  const xpToNext = getXpToNext(xp)
+  const initials = getInitials(name)
+
   const featured = LIVE_EVENTS.find((e) => e.featured)
   const top = LEADERBOARD.slice(0, 4)
   const you = LEADERBOARD.find((r) => r.you)
@@ -47,13 +84,13 @@ export default function Dashboard({ onNavigate }) {
           <div>
             <p className="text-sm text-white/50">¡Hola de nuevo,</p>
             <h1 className="font-display text-3xl font-bold sm:text-4xl">
-              {u.name.split(' ')[0]} 👋
+              {name.split(' ')[0]} 👋
             </h1>
           </div>
           <div className="flex items-center gap-2 rounded-2xl bg-ember-500/15 px-4 py-2 ring-1 ring-ember-500/30">
             <Flame size={20} className="text-ember-400" />
             <div className="leading-none">
-              <div className="font-display text-xl font-bold">{u.streak}</div>
+              <div className="font-display text-xl font-bold">{streak}</div>
               <div className="text-[10px] uppercase tracking-wide text-ember-300/80">días</div>
             </div>
           </div>
@@ -170,27 +207,27 @@ export default function Dashboard({ onNavigate }) {
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
               <Card className="p-6">
                 <div className="flex items-center gap-3">
-                  <Avatar initials={u.initials} gradient={u.avatarColor} size={52} />
+                  <Avatar initials={initials} gradient="from-bolt-500 to-plasma-500" size={52} />
                   <div>
-                    <div className="font-display text-lg font-bold leading-none">{u.name}</div>
+                    <div className="font-display text-lg font-bold leading-none">{name}</div>
                     <div
                       className="mt-1 text-sm font-bold"
-                      style={{ color: rankColor(u.rank) }}
+                      style={{ color: rank.color }}
                     >
-                      {u.rank}
+                      {rank.name}
                     </div>
                   </div>
                   <div className="ml-auto text-right">
                     <div className="text-[10px] uppercase tracking-wide text-white/40">Nivel</div>
-                    <div className="font-display text-2xl font-bold text-gradient-cool">{u.level}</div>
+                    <div className="font-display text-2xl font-bold text-gradient-cool">{level}</div>
                   </div>
                 </div>
                 <div className="mt-5">
                   <div className="mb-1.5 flex justify-between text-xs text-white/50">
                     <span>XP del nivel</span>
-                    <span className="nums">{u.xp.toLocaleString('es')} / {u.xpToNext.toLocaleString('es')}</span>
+                    <span className="nums">{xp.toLocaleString('es')} / {xpToNext.toLocaleString('es')}</span>
                   </div>
-                  <ProgressBar value={u.xp} total={u.xpToNext} color="plasma" height={12} />
+                  <ProgressBar value={xp} total={xpToNext} color="plasma" height={12} />
                 </div>
               </Card>
             </motion.div>

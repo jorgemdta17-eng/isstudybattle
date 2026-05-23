@@ -1,8 +1,10 @@
 import { useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 
+import { AuthProvider, useAuth } from './context/AuthContext'
 import AppShell from './components/AppShell'
 import Landing from './screens/Landing'
+import Auth from './screens/Auth'
 import Onboarding from './screens/Onboarding'
 import Dashboard from './screens/Dashboard'
 import Battle from './screens/Battle'
@@ -12,7 +14,6 @@ import Library from './screens/Library'
 import Leaderboard from './screens/Leaderboard'
 import Profile from './screens/Profile'
 
-// Pantallas que viven DENTRO del shell de la app (con sidebar / bottom nav)
 const IN_APP = {
   dashboard: Dashboard,
   battle: Battle,
@@ -23,22 +24,41 @@ const IN_APP = {
   profile: Profile,
 }
 
-export default function App() {
-  // 'landing' | 'onboarding' | <id de pantalla interna>
+function AppRouter() {
+  const { user, profile } = useAuth()
   const [screen, setScreen] = useState('landing')
+  const [hasOnboarded, setHasOnboarded] = useState(false)
 
   const navigate = (next) => {
     setScreen(next)
-    // al cambiar de sección, volvemos arriba
     if (typeof window !== 'undefined') window.scrollTo({ top: 0 })
   }
 
-  if (screen === 'landing') {
-    return <Landing onStart={() => navigate('onboarding')} onNavigate={navigate} />
+  // Still resolving auth session
+  if (user === undefined) {
+    return (
+      <div className="grid min-h-screen place-items-center bg-ink-900">
+        <div className="h-10 w-10 animate-spin rounded-full border-4 border-white/10 border-t-bolt-400" />
+      </div>
+    )
   }
 
-  if (screen === 'onboarding') {
-    return <Onboarding onFinish={() => navigate('dashboard')} />
+  // Not logged in: show landing or auth
+  if (!user) {
+    if (screen === 'auth') return <Auth />
+    return <Landing onStart={() => navigate('auth')} onNavigate={navigate} />
+  }
+
+  // Logged in but hasn't completed onboarding this session
+  if (!hasOnboarded && screen === 'landing') {
+    return (
+      <Onboarding
+        onFinish={() => {
+          setHasOnboarded(true)
+          navigate('dashboard')
+        }}
+      />
+    )
   }
 
   const ScreenComp = IN_APP[screen] ?? Dashboard
@@ -58,5 +78,13 @@ export default function App() {
         </motion.div>
       </AnimatePresence>
     </AppShell>
+  )
+}
+
+export default function App() {
+  return (
+    <AuthProvider>
+      <AppRouter />
+    </AuthProvider>
   )
 }

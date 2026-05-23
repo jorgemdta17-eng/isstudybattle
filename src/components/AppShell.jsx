@@ -10,10 +10,11 @@ import {
   Flame,
   Coins,
   Zap,
+  LogOut,
 } from 'lucide-react'
 import BoltLogo from './BoltLogo'
 import { Avatar } from './UI'
-import { CURRENT_USER } from '../data/mock'
+import { useAuth } from '../context/AuthContext'
 
 export const NAV = [
   { id: 'dashboard', label: 'Home', icon: Home },
@@ -144,7 +145,18 @@ export default function AppShell({ screen, onNavigate, children }) {
 }
 
 function TopBar({ onNavigate }) {
-  const u = CURRENT_USER
+  const { profile, signOut } = useAuth()
+  const streak = profile?.streak ?? 0
+  const xp = profile?.xp ?? 0
+  const coins = profile?.coins ?? 0
+  const name = profile?.name ?? ''
+  const initials = name
+    .split(' ')
+    .map((w) => w[0])
+    .join('')
+    .slice(0, 2)
+    .toUpperCase() || '?'
+
   return (
     <header className="sticky top-0 z-20 flex items-center justify-between gap-3 border-b border-white/8 bg-ink-900/70 px-4 py-3 backdrop-blur-xl lg:px-8">
       <button onClick={() => onNavigate('dashboard')} className="flex items-center gap-2 lg:hidden">
@@ -155,11 +167,18 @@ function TopBar({ onNavigate }) {
       <div className="hidden lg:block" />
 
       <div className="flex items-center gap-2 sm:gap-3">
-        <Stat icon={Flame} value={u.streak} color="text-ember-400" label="racha" />
-        <Stat icon={Zap} value={u.xp.toLocaleString('es')} color="text-bolt-300" label="XP" />
-        <Stat icon={Coins} value={u.coins.toLocaleString('es')} color="text-spark-400" label="monedas" />
+        <Stat icon={Flame} value={streak} color="text-ember-400" label="racha" />
+        <Stat icon={Zap} value={xp.toLocaleString('es')} color="text-bolt-300" label="XP" />
+        <Stat icon={Coins} value={coins.toLocaleString('es')} color="text-spark-400" label="monedas" />
         <button onClick={() => onNavigate('profile')} className="ml-1">
-          <Avatar initials={u.initials} gradient={u.avatarColor} size={38} />
+          <Avatar initials={initials} gradient="from-bolt-500 to-plasma-500" size={38} />
+        </button>
+        <button
+          onClick={signOut}
+          title="Cerrar sesión"
+          className="grid h-9 w-9 place-items-center rounded-xl text-white/40 transition hover:bg-white/5 hover:text-white"
+        >
+          <LogOut size={16} />
         </button>
       </div>
     </header>

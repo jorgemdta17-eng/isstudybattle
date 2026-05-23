@@ -3,17 +3,37 @@ import { motion } from 'framer-motion'
 import { Flame, Zap, Target, Trophy, Crown, Check, Lock, Sparkles } from 'lucide-react'
 import { Aurora, Card, Chip, ProgressBar, Avatar } from '../components/UI'
 import BoltLogo from '../components/BoltLogo'
-import { CURRENT_USER, BADGES, COSMETICS, RANKS, rankColor } from '../data/mock'
+import { BADGES, COSMETICS, RANKS, rankColor } from '../data/mock'
+import { useAuth } from '../context/AuthContext'
+
+function getRank(xp) {
+  let rank = RANKS[0]
+  for (const r of RANKS) { if (xp >= r.min) rank = r }
+  return rank
+}
+function getLevel(xp) { return Math.max(1, Math.floor(xp / 300) + 1) }
+function getXpToNext(xp) { return getLevel(xp) * 300 }
+function getInitials(name) {
+  return (name || '').split(' ').map((w) => w[0]).join('').slice(0, 2).toUpperCase() || '?'
+}
 
 export default function Profile() {
-  const u = CURRENT_USER
+  const { profile } = useAuth()
+  const xp = profile?.xp ?? 0
+  const streak = profile?.streak ?? 0
+  const coins = profile?.coins ?? 0
+  const name = profile?.name ?? 'Jugador'
+  const rank = getRank(xp)
+  const level = getLevel(xp)
+  const xpToNext = getXpToNext(xp)
+  const initials = getInitials(name)
   const [tab, setTab] = useState('badges')
 
   const stats = [
-    { icon: Zap, label: 'XP total', value: u.xp.toLocaleString('es'), color: 'text-bolt-300' },
-    { icon: Flame, label: 'Racha', value: `${u.streak} días`, color: 'text-ember-400' },
+    { icon: Zap, label: 'XP total', value: xp.toLocaleString('es'), color: 'text-bolt-300' },
+    { icon: Flame, label: 'Racha', value: `${streak} días`, color: 'text-ember-400' },
     { icon: Target, label: 'Precisión', value: '78%', color: 'text-toxic-400' },
-    { icon: Trophy, label: 'Victorias', value: '142', color: 'text-spark-400' },
+    { icon: Trophy, label: 'Victorias', value: '0', color: 'text-spark-400' },
   ]
 
   return (
@@ -26,28 +46,24 @@ export default function Profile() {
             <div className="absolute -right-16 -top-16 h-56 w-56 rounded-full bg-plasma-500/20 blur-[90px]" />
             <div className="relative flex flex-col items-center gap-5 sm:flex-row sm:items-start">
               <div className="relative">
-                <Avatar initials={u.initials} gradient={u.avatarColor} size={88} />
+                <Avatar initials={initials} gradient="from-bolt-500 to-plasma-500" size={88} />
                 <span className="absolute -bottom-2 left-1/2 -translate-x-1/2 rounded-full bg-ink-700 px-2 py-0.5 text-xs font-bold ring-1 ring-white/10 nums">
-                  Lv {u.level}
+                  Lv {level}
                 </span>
               </div>
               <div className="flex-1 text-center sm:text-left">
                 <div className="flex flex-wrap items-center justify-center gap-2 sm:justify-start">
-                  <h1 className="font-display text-2xl font-bold">{u.name}</h1>
-                  <Chip color="toxic">📖 Erudito</Chip>
+                  <h1 className="font-display text-2xl font-bold">{name}</h1>
                 </div>
-                <p className="text-sm text-white/50">{u.handle} · {u.university}</p>
                 <div className="mt-2 flex items-center justify-center gap-2 sm:justify-start">
-                  <span className="font-bold" style={{ color: rankColor(u.rank) }}>{u.rank}</span>
-                  <span className="text-white/30">·</span>
-                  <span className="text-sm text-white/50">Rank global #{u.globalRank}</span>
+                  <span className="font-bold" style={{ color: rank.color }}>{rank.name}</span>
                 </div>
                 <div className="mt-4">
                   <div className="mb-1 flex justify-between text-xs text-white/50">
-                    <span>Nivel {u.level}</span>
-                    <span className="nums">{u.xp.toLocaleString('es')} / {u.xpToNext.toLocaleString('es')} XP</span>
+                    <span>Nivel {level}</span>
+                    <span className="nums">{xp.toLocaleString('es')} / {xpToNext.toLocaleString('es')} XP</span>
                   </div>
-                  <ProgressBar value={u.xp} total={u.xpToNext} color="plasma" height={12} />
+                  <ProgressBar value={xp} total={xpToNext} color="plasma" height={12} />
                 </div>
               </div>
             </div>
@@ -79,8 +95,8 @@ export default function Profile() {
           </h3>
           <div className="flex items-center justify-between">
             {RANKS.map((r, i) => {
-              const reached = u.xp >= r.min
-              const current = u.rank === r.name
+              const reached = xp >= r.min
+              const current = rank.name === r.name
               return (
                 <div key={r.name} className="flex flex-1 flex-col items-center">
                   <div className="flex w-full items-center">
@@ -99,7 +115,7 @@ export default function Profile() {
                       {reached ? <Crown size={15} /> : <Lock size={13} />}
                     </div>
                     {i < RANKS.length - 1 && (
-                      <div className={`h-0.5 flex-1 ${u.xp >= RANKS[i + 1].min ? 'bg-bolt-500' : 'bg-white/10'}`} />
+                      <div className={`h-0.5 flex-1 ${xp >= RANKS[i + 1].min ? 'bg-bolt-500' : 'bg-white/10'}`} />
                     )}
                   </div>
                   <div className={`mt-2 text-center text-[10px] font-semibold ${current ? 'text-spark-400' : 'text-white/40'}`}>
