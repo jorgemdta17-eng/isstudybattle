@@ -362,10 +362,11 @@ function Results({ stats, mode, userId, onAgain, onHome }) {
     if (!userId) { setSaving(false); return }
     saveBattleResult(userId, { xpGained: stats.score, won })
       .then((updated) => {
+        refreshProfile()
+        if (!updated) return
         const oldXp = updated.xp - stats.score
         const oldLevel = Math.max(1, Math.floor(oldXp / 300) + 1)
         if (updated.level > oldLevel) setLevelUp(updated.level)
-        refreshProfile()
       })
       .catch((err) => {
         setSaveError('No se pudo guardar el resultado. Comprueba tu conexión.')

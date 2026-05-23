@@ -55,11 +55,17 @@ function AppRouter() {
   // Logged in but onboarding not yet completed
   if (!profile?.onboarding_completed) {
     async function handleOnboardingFinish() {
+      // Fetch current XP so we can add the welcome bonus on top
+      const { data: current } = await supabase
+        .from('profiles')
+        .select('xp')
+        .eq('id', user.id)
+        .maybeSingle()
+      const newXp = (current?.xp ?? 0) + 250
       await supabase
         .from('profiles')
-        .update({ onboarding_completed: true })
+        .update({ onboarding_completed: true, xp: newXp })
         .eq('id', user.id)
-      // Refresh profile in context so the guard above flips on next render
       await refreshProfile()
       navigate('dashboard')
     }

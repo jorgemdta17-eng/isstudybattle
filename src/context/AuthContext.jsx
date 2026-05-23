@@ -28,13 +28,23 @@ export function AuthProvider({ children }) {
   const [profile, setProfile] = useState(null)
 
   async function fetchAndUpdateStreak(userId) {
-    const { data } = await supabase
+    let { data } = await supabase
       .from('profiles')
       .select('*')
       .eq('id', userId)
       .maybeSingle()
 
-    if (!data) { setProfile(data); return }
+    // If the profile row is missing (e.g. interrupted signup), create it now
+    if (!data) {
+      const { data: created } = await supabase
+        .from('profiles')
+        .insert({ id: userId })
+        .select()
+        .maybeSingle()
+      data = created
+    }
+
+    if (!data) { setProfile(null); return }
 
     const update = computeStreak(data.last_activity_date, data.streak)
     if (update) {
